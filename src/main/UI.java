@@ -1,9 +1,13 @@
 package main;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontFormatException;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.DecimalFormat;
 
 import object.OBJ_Key;
@@ -11,23 +15,28 @@ import object.OBJ_Key;
 public class UI {
 	
 	GamePanel gp;
-	Font arial_40, arial_80B;
-	BufferedImage keyImage;
+	Graphics2D g2;
+	Font maruMonica;
 	public boolean messageOn = false;
 	public String message = "";
 	int messageCounter = 0;
 	public boolean gameFinished = false;
-	
-	double playTime;
-	DecimalFormat dFormat = new DecimalFormat("#0.00");
+	public String currentDialogue = "";
+	public int commandNum = 0;
+	public int titleScreenState = 0; //  0: the first screen, 1: the second screen
 	
 	public UI(GamePanel gp) {
 		this.gp = gp;
 		
-		arial_40 = new Font("Arial", Font.PLAIN, 40);
-		arial_80B = new Font("Arial", Font.BOLD, 80);
-		OBJ_Key key = new OBJ_Key(gp);
-		keyImage = key.image;
+		try {
+			InputStream is = getClass().getResourceAsStream("/font/x12y16pxMaruMonica.ttf");
+			maruMonica = Font.createFont(Font.TRUETYPE_FONT, is);
+		} catch (FontFormatException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
 	
 	public void showMessage(String text) {
@@ -36,66 +45,185 @@ public class UI {
 	}
 	
 	public void draw(Graphics2D g2) {
+	
+		this.g2 = g2;
 		
-		if (gameFinished == true) {
+		g2.setFont(maruMonica);
+		g2.setColor(Color.white);
+		
+		// TITLE STATE
+		if (gp.gameState == gp.titleState) {
+			drawTitleScreen();
+		}
+		
+		// PLAY STATE
+		if (gp.gameState == gp.playState) {
 			
-			g2.setFont(arial_40);
+		}
+		
+		// PAUSE STATE 
+		if (gp.gameState == gp.pauseState){
+			drawPauseScreen();
+		}
+		
+		// DIALOGUE STATE
+		if (gp.gameState == gp.dialogueState) {
+			drawDialogueScreen();
+		}
+		
+	}
+	
+	public void drawTitleScreen() {
+		
+		if (titleScreenState == 0) {
+			
+			// BACKGROUND COLOR
+			g2.setColor(new Color(0, 0, 0));
+			g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
+			
+			// TIILE NAME
+			g2.setFont(g2.getFont().deriveFont(Font.BOLD, 56F));
+			String text = "The Just a Quick Visit Adventure";
+			int x = getXforCenteredText(text);
+			int y = gp.tileSize * 3;
+			
+			// SHADOW 
+			g2.setColor(new Color(77, 1, 16));
+			g2.drawString(text, x + 4, y + 4);
+			
+			// TITILE COLOR
 			g2.setColor(Color.white);
-			
-			String text;
-			int textLength;
-			int x, y;
-			
-			text = "You found the treasure!";
-			textLength = (int)g2.getFontMetrics().getStringBounds(text, g2).getWidth();
-			x = gp.screenWidth / 2 - textLength / 2;
-			y = gp.screenHeight / 2 - (gp.tileSize * 3);
 			g2.drawString(text, x, y);
 			
-			text = "Time used: " + dFormat.format(playTime);
-			textLength = (int)g2.getFontMetrics().getStringBounds(text, g2).getWidth();
-			x = gp.screenWidth / 2 - textLength / 2;
-			y = gp.screenHeight / 2 + (gp.tileSize * 4);
-			g2.drawString(text, x, y);
-			 
-			g2.setFont(arial_80B);
-			g2.setColor(Color.yellow);
-			text = "Congratulations";
-			textLength = (int)g2.getFontMetrics().getStringBounds(text, g2).getWidth();
-			x = gp.screenWidth / 2 - textLength / 2;
-			y = gp.screenHeight / 2 + (gp.tileSize * 2);
-			g2.drawString(text, x, y);
+			// IMAGE
+			x = gp.screenWidth / 2 - (gp.tileSize * 2) / 2;
+			y += gp.tileSize * 2;
+			g2.drawImage(gp.player.left0, x, y, gp.tileSize * 2, gp.tileSize * 2, null);
 			
-			gp.gameThread = null;
+			// MENU
+			g2.setFont(g2.getFont().deriveFont(Font.BOLD, 48F));
 			
-		} else { // in-game text
-			g2.setFont(arial_40);
+			text = "NEW GAME";
+			x = getXforCenteredText(text);
+			y += gp.tileSize * 4;
+			g2.drawString(text, x, y);
+			if (commandNum == 0) {
+				g2.drawString("> ", x - gp.tileSize, y);
+			}
+			
+			text = "LOAD GAME";
+			x = getXforCenteredText(text);
+			y += gp.tileSize;
+			g2.drawString(text, x, y);
+			if (commandNum == 1) {
+				g2.drawString("> ", x - gp.tileSize, y);
+			}
+			
+			text = "EXIT";
+			x = getXforCenteredText(text);
+			y += gp.tileSize;
+			g2.drawString(text, x, y);
+			if (commandNum == 2) {
+				g2.drawString("> ", x - gp.tileSize, y);
+			}
+			
+		}
+		else if (titleScreenState == 1) {
+			
+			// CLASS SELECTION SCREEN
 			g2.setColor(Color.white);
-			g2.drawImage(keyImage, gp.tileSize / 2, gp.tileSize / 2, gp.tileSize, gp.tileSize, null);
-			g2.drawString("x " + gp.player.hasKey, 74, 60);
+			g2.setFont(g2.getFont().deriveFont(42F));
 			
-			//  TIME
-			playTime += (double) 1 / 60; // 60 times per second
-			g2.drawString("Time: " + dFormat.format(playTime), gp.tileSize * 11, 60);
+			String text = "Select your class";
+			int x = getXforCenteredText(text);
+			int y = gp.tileSize * 3;
+			g2.drawString(text, x, y); 
 			
-			// MESSAGE
-			if (messageOn == true) {
-				
-				g2.setFont(g2.getFont().deriveFont(30F));
-				g2.drawString(message, gp.tileSize / 2, gp.tileSize * 5);
-				
-				messageCounter++;
-				
-				if (messageCounter > 120) { // message disappear after 2 seconds
-					messageCounter = 0;
-					messageOn = false;
-				}
-				
+			text = "Fighter";
+			x = getXforCenteredText(text);
+			y += gp.tileSize * 3;
+			g2.drawString(text, x, y); 
+			if (commandNum == 0) {
+				g2.drawString("> ", x - gp.tileSize, y);
+			}
+			
+			text = "Thief";
+			x = getXforCenteredText(text);
+			y += gp.tileSize;
+			g2.drawString(text, x, y); 
+			if (commandNum == 1) {
+				g2.drawString("> ", x - gp.tileSize, y);
+			}
+			
+			text = "Sorcerer";
+			x = getXforCenteredText(text);
+			y += gp.tileSize;
+			g2.drawString(text, x, y); 
+			if (commandNum == 2) {
+				g2.drawString("> ", x - gp.tileSize, y);
+			}
+			text = "Back";
+			x = getXforCenteredText(text);
+			y += gp.tileSize * 2;
+			g2.drawString(text, x, y); 
+			if (commandNum == 3) {
+				g2.drawString("> ", x - gp.tileSize, y);
 			}
 			
 		}
 		
-
 		
+	}
+	
+	public void drawPauseScreen() {
+		
+		g2.setFont(g2.getFont().deriveFont(Font.PLAIN, 80F));
+		String text = "PAUSED";
+		
+		int x = getXforCenteredText(text);
+		int y = gp.screenHeight / 2;
+		
+		g2.drawString(text, x, y);
+	}
+	
+	public void drawDialogueScreen() {
+		
+		// WINDOW
+		int x = gp.tileSize * 2;
+		int y = gp.tileSize / 2;
+		int width = gp.screenWidth - (gp.tileSize * 4);
+		int height = gp.tileSize * 4;
+		
+		drawSubWindow(x, y , width, height);
+		
+		g2.setFont(g2.getFont().deriveFont(Font.PLAIN, 32F));
+		x += gp.tileSize;
+		y += gp.tileSize;
+		
+		for (String line : currentDialogue.split("\n")) {
+			g2.drawString(line, x, y);
+			y += 40;
+		}
+		
+	}
+	
+	public void drawSubWindow(int x, int y, int width, int height) {
+		
+		Color c = new Color(0, 0, 0, 210);
+		g2.setColor(c);
+		g2.fillRoundRect(x, y, width, height, 35, 35);
+		
+		c = new Color(255, 255, 255);
+		g2.setColor(c);
+		g2.setStroke(new BasicStroke(5));
+		g2.drawRoundRect(x + 5, y + 5, width - 10, height - 10, 25, 25);
+	}
+	
+	public int getXforCenteredText(String text) {
+		
+		int length = (int) g2.getFontMetrics().getStringBounds(text, g2).getWidth();
+		int x = gp.screenWidth / 2 - length / 2;
+		
+		return x;
 	}
 }

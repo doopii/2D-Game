@@ -12,17 +12,15 @@ import main.KeyHandler;
 import main.UtilityTool;
 
 public class Player extends Entity{
-	GamePanel gp;
-	KeyHandler keyH;
 	
+	KeyHandler keyH;
 	public final int screenX;
 	public final int screenY;
-	public int hasKey = 0;
 	int standCounter = 0;
-	
-	
+
 	public Player(GamePanel gp, KeyHandler keyH) {
-		this.gp = gp;
+		
+		super(gp);
 		this.keyH = keyH;
 		
 		screenX = gp.screenWidth / 2 - (gp.tileSize / 2);
@@ -50,37 +48,23 @@ public class Player extends Entity{
 	
 	public void getPlayerImage() {
 		
-		up0 = setup("ao_up_0");
-		up1 = setup("ao_up_1");
-		up2 = setup("ao_up_2");
+		up0 = setup("/player/tama_up_0");
+		up1 = setup("/player/tama_up_1");
+		up2 = setup("/player/tama_up_2");
 		
-		down0 = setup("ao_down_0");
-		down1 = setup("ao_down_1");
-		down2 = setup("ao_down_2");
+		down0 = setup("/player/tama_down_0");
+		down1 = setup("/player/tama_down_1");
+		down2 = setup("/player/tama_down_2");
 		
-		left0 = setup("ao_left_0");
-		left1 = setup("ao_left_1");
-		left2 = setup("ao_left_2");
+		left0 = setup("/player/tama_left_0");
+		left1 = setup("/player/tama_left_1");
+		left2 = setup("/player/tama_left_2");
+		left3 = setup("/player/tama_left_3");
 		
-		right0 = setup("ao_right_0");
-		right1 = setup("ao_right_1");
-		right2 = setup("ao_right_2");
-	}
-	
-	public BufferedImage setup(String imageName) {
-		
-		UtilityTool uTool = new UtilityTool();
-		BufferedImage image = null;
-		
-		try {
-			image = ImageIO.read(getClass().getResourceAsStream("/player/" + imageName + ".png"));
-			image = uTool.scaledImage(image, gp.tileSize, gp.tileSize);
-			
-		} catch (IOException e) {
-			e.printStackTrace(); 
-		}
-		
-		return image;
+		right0 = setup("/player/tama_right_0");
+		right1 = setup("/player/tama_right_1");
+		right2 = setup("/player/tama_right_2");
+		right3 = setup("/player/tama_right_3");
 	}
 	
 	public void update() {
@@ -91,9 +75,14 @@ public class Player extends Entity{
 				direction = keyH.lastKeyPressed;
 			} 
 			
-			// Force spriteNum = 1 if it was idle
-			if (spriteNum == 0) {
-				spriteNum = 1;
+			// Reset walkFrameIndex when switching between vertical and horizontal directions
+			if ((direction.equals("left") || direction.equals("right")) && (spriteNum > 3 || spriteNum < 0)) {
+			    spriteNum = 0;
+			    walkFrameIndex = 0;
+			}
+			else if ((direction.equals("up") || direction.equals("down")) && spriteNum > 2) {
+			    spriteNum = 0;
+			    walkFrameIndex = 0;
 			}
 			
 			// CHECK TILE COLLISION
@@ -103,6 +92,10 @@ public class Player extends Entity{
 			// CHECK OBJECT COLLISION
 			int objIndex = gp.cChecker.checkObject(this, true);
 			pickUpObject(objIndex);
+			
+			// CHECK NPC COLLISION
+			int npcIndex = gp.cChecker.checkEntity(this, gp.npc);
+			interactNPC(npcIndex);
 			
 			// IF COLLISION IS FALSE, PLAYER CAN MOVE 
 			if (collisionOn == false) {
@@ -122,18 +115,36 @@ public class Player extends Entity{
 					break;
 				}
 			}
-			
 			spriteCounter++;
-			// player image gets changed every 10 frames
-			if (spriteCounter > 10) {
-				if (spriteNum == 1) {
-					spriteNum = 2;
-				} 
-				else if(spriteNum == 2) {
+			
+			if (direction.equals("left") || direction.equals("right")) {
+				
+				int[] walkSequence = {1, 3, 0, 3, 2, 3, 0};
+
+				if (spriteCounter > 10 / 2) {
+				    spriteNum = walkSequence[walkFrameIndex];
+				    walkFrameIndex = (walkFrameIndex + 1) % walkSequence.length;
+				    spriteCounter = 0;
+				}
+			}
+			else {
+				// Force spriteNum = 1 if it was idle
+				if (spriteNum == 0) {
 					spriteNum = 1;
 				}
-				spriteCounter = 0;
+				
+				// player image gets changed every 10 frames
+				if (spriteCounter > 10) {
+					if (spriteNum == 1) {
+						spriteNum = 2;
+					} 
+					else if(spriteNum == 2) {
+						spriteNum = 1;
+					}
+					spriteCounter = 0;
+				}
 			}
+
 			
 		} else {
 			standCounter++;
@@ -141,6 +152,7 @@ public class Player extends Entity{
 			if (standCounter == 10) {
 				spriteNum = 0;
 				standCounter = 0;
+				walkFrameIndex = 0;
 			}
 			
 		}
@@ -148,39 +160,23 @@ public class Player extends Entity{
 	}
 	
 	public void pickUpObject(int i) {
+		
 		if (i != 999) {
-			String objectName = gp.obj[i].name;
 			
-			switch(objectName) {
-			case "Key":
-				gp.playSE(1);
-				hasKey++;
-				gp.obj[i] = null;
-				gp.ui.showMessage("+ 1 key");
-				break;
-			case "Door":
-				if (hasKey > 0) {
-					gp.playSE(3);
-					gp.obj[i] = null;
-					hasKey--;
-					gp.ui.showMessage("door unlocked");
-				} else {
-					gp.ui.showMessage("key?");
-				}
-				break;
-			case "Boots":
-				gp.playSE(2);
-				speed += 2;
-				gp.obj[i] = null;
-				gp.ui.showMessage("speed up");
-				break;
-			case "Chest":
-				gp.ui.gameFinished = true;
-				gp.stopMusic();
-				gp.playSE(4);
-				break;
+		}
+	}
+	
+	public void interactNPC(int i) {
+		
+		if (i != 999) {
+			
+			if (gp.keyH.enterPressed == true) {
+				gp.gameState = gp.dialogueState;
+				gp.npc[i].speak();
 			}
 		}
+		
+		gp.keyH.enterPressed = false;
 	}
 	
 	public void draw(Graphics2D g2) {
@@ -222,6 +218,9 @@ public class Player extends Entity{
 			if (spriteNum == 2) {
 				image = left2;
 			}
+			if (spriteNum == 3) {
+				image = left3;
+			}
 			break;
 		case "right":
 			if (spriteNum == 0) {
@@ -232,6 +231,9 @@ public class Player extends Entity{
 			}
 			if (spriteNum == 2) {
 				image = right2;
+			}
+			if (spriteNum == 3) {
+				image = right3;
 			}
 			break;
 		}
